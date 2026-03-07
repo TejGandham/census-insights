@@ -1,5 +1,9 @@
 # Chainlit vs Streamlit: Comprehensive Multi-Role Analysis
 
+Status: historical framework-selection rationale. This is not the current implementation spec.
+
+For the current built system, use `docs/analysis/2026-03-07-current-implementation-design.md`.
+
 **Date**: 2026-02-05
 **Versions Analyzed**: Chainlit 2.9.6 (Jan 20, 2026) | Streamlit 1.54.0 (Feb 4, 2026)
 **Analysis Method**: Parallel evaluation from three perspectives (Developer, Architect, SRE)
