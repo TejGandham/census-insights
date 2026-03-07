@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-census_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-census_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-census_data}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    ports:
+      - "5433:5432"  # exposed for local dev/debugging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-census_admin}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mindsdb:
+    image: mindsdb/mindsdb
+    environment:
+      MINDSDB_APIS: http,mysql
+    ports:
+      - "47335:47334"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:47334/api/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  data-agent:
+    build: .
+    volumes:
+      - ./data/raw:/app/data/raw:ro   # Census summary files (read-only)
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CENSUS_API_KEY: ${CENSUS_API_KEY}
+      MINDSDB_HOST: http://mindsdb:47334
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-census_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-census_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-census_data}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o}
+      STREAM_THINKING: "1"
+    ports:
+      - "8001:8000"
+    depends_on:
+      mindsdb:
+        condition: service_healthy
+
+volumes:
+  pgdata:

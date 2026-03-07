@@ -1,0 +1,14 @@
+chainlit~=2.9
+mindsdb_sdk
+openai>=2.0
+python-dotenv
+
+# ETL dependencies
+census
+us
+psycopg2-binary
+requests
+
+# Testing
+pytest
+pytest-timeout

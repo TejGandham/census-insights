@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.chainlit/
+.claude/
+.DS_Store
+
+# Census bulk data (downloaded manually, ~53GB)
+data/raw/
