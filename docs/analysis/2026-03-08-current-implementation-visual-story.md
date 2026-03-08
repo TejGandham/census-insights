@@ -4,6 +4,8 @@ This diagram-first companion retells the live product as one camera move: world,
 
 It complements `docs/analysis/2026-03-07-current-implementation-design.md` rather than replacing it. If this document and the source-of-truth design doc ever drift, the code and the source-of-truth design doc win.
 
+Across the diagrams, `ACS Table Group` is the diagram-safe stand-in for the runtime `acs_<table_id>` table family.
+
 ## 1. The World
 
 We begin with the system in its environment. The `User` reaches the product through the `Browser`, while `data-agent` bridges the application runtime to the services and data sources around it.
@@ -17,7 +19,7 @@ C4Context
     System(dataAgent, "data-agent", "Custom application container that bootstraps data, runs Chainlit, and executes the OpenAI tool loop")
     System_Ext(openai, "OpenAI API", "Returns tool calls and final answers")
     System_Ext(mindsdb, "MindsDB", "SQL proxy layer reached as http://mindsdb:47334 inside the stack")
-    System_Ext(postgres, "PostgreSQL", "Stores geographies, acs_catalog, and acs_<table_id> tables")
+    System_Ext(postgres, "PostgreSQL", "Stores geographies, acs_catalog, and ACS Table Group tables")
     System_Ext(censusVars, "Census variables.json", "Metadata feed used to build acs_catalog")
     System_Ext(bulkFiles, "Local ACS Bulk Files", "Primary tract-capable ACS summary file source")
 
@@ -27,7 +29,7 @@ C4Context
     Rel(dataAgent, mindsdb, "Executes search_catalog, sql_query, and export_csv through")
     Rel(mindsdb, postgres, "Reads and queries")
     Rel(dataAgent, censusVars, "Loads acs_catalog from during bootstrap")
-    Rel(dataAgent, bulkFiles, "Loads geographies and acs_<table_id> tables from during bootstrap")
+    Rel(dataAgent, bulkFiles, "Loads geographies and ACS Table Group tables from during bootstrap")
 ```
 
 Now that `data-agent` is the box we care about, the next view opens it up. The `User`, `Browser`, `OpenAI API`, `MindsDB`, and `PostgreSQL` stay in frame so the inside of the system never loses its surroundings.
@@ -53,7 +55,7 @@ C4Container
         Container(agentLoop, "Agent Loop", "src/agent_client.py", "Builds messages, calls OpenAI API, and executes tools")
         Container(fileExport, "File Export", "temp CSV artifact", "Stores export_csv results until Chainlit serves them")
         Container(bootstrapPath, "Bootstrap Path", "scripts/entrypoint.sh", "Checks data, runs setup, and starts Chainlit")
-        Container(bulkFileEtl, "Bulk File ETL", "scripts/load_from_files.py", "Loads acs_catalog, geographies, and acs_<table_id> tables")
+        Container(bulkFileEtl, "Bulk File ETL", "scripts/load_from_files.py", "Loads acs_catalog, geographies, and ACS Table Group tables")
         Container(mindsdbSetup, "MindsDB Setup", "scripts/setup_mindsdb.py", "Creates the census_db connection in MindsDB")
     }
 
@@ -96,7 +98,7 @@ sequenceDiagram
     else geographies is empty
         PostgreSQL-->>Bootstrap Path: count = 0
         Bootstrap Path->>Bulk File ETL: run load_from_files.py
-        Bulk File ETL->>PostgreSQL: load acs_catalog, geographies, and acs_<table_id> tables
+        Bulk File ETL->>PostgreSQL: load acs_catalog, geographies, and ACS Table Group tables
     end
     Bootstrap Path->>MindsDB Setup: run setup_mindsdb.py
     MindsDB Setup->>MindsDB: create census_db connection
@@ -129,7 +131,7 @@ sequenceDiagram
     MindsDB-->>Agent Loop: catalog CSV
     Agent Loop->>OpenAI API: append catalog tool result
     OpenAI API-->>Agent Loop: sql_query(SELECT ...)
-    Agent Loop->>MindsDB: query geographies and acs_<table_id>
+    Agent Loop->>MindsDB: query geographies and ACS Table Group tables
     MindsDB->>PostgreSQL: execute analytical SQL
     PostgreSQL-->>MindsDB: result rows
     MindsDB-->>Agent Loop: result CSV
@@ -218,12 +220,12 @@ Those lifecycle transitions only matter because the same tables keep appearing u
 
 ## 5. The Data
 
-`geographies` and `acs_catalog` already appeared by name in Flow 1 and Flow 2, and the analytical tables appeared there as `acs_<table_id>`. This ER view keeps `acs_<table_id>` primary by showing the family behind that runtime naming pattern.
+`geographies` and `acs_catalog` already appeared by name in Flow 1 and Flow 2, and the analytical tables appeared there as `ACS Table Group`. This ER view ties that diagram-safe name back to the runtime `acs_<table_id>` naming pattern.
 
 ```mermaid
 erDiagram
-    geographies ||--o{ acs_table_family : joined_to_acs_<table_id>
-    acs_catalog ||--o{ acs_table_family : looked_up_before_acs_<table_id>
+    geographies ||--o{ acs_table_family : joined_to_ACS_Table_Group
+    acs_catalog ||--o{ acs_table_family : looked_up_before_ACS_Table_Group
 
     geographies {
         varchar geo_id PK
@@ -254,7 +256,7 @@ erDiagram
     }
 ```
 
-The `acs_table_family` node is conceptual shorthand for the runtime `acs_<table_id>` tables seen in Flow 1 through Flow 3. The ER lines describe the runtime join and lookup relationships the `Agent Loop` uses, not declared foreign keys on every auto-created ACS table.
+The `acs_table_family` node is conceptual shorthand for the runtime `acs_<table_id>` tables seen earlier as `ACS Table Group`. The ER lines describe the runtime join and lookup relationships the `Agent Loop` uses, not declared foreign keys on every auto-created ACS table.
 
 ## 6. The Risk
 
@@ -280,7 +282,7 @@ flowchart TD
         Q1[Flow 2 or Flow 3 reaches Agent Loop] --> Q2{What did the last tool return?}
         Q2 -- search_catalog returned weak or no matches --> Q3[OpenAI API decides whether to re-search with shorter Census terms]
         Q2 -- sql_query/export_csv returned rows --> Q9[Return answer or File Export to Chainlit App]
-        Q2 -- sql_query/export_csv returned error or 0 rows --> Q4{Consecutive sql_query/export_csv failures < 3?}
+        Q2 -- sql_query/export_csv returned error or 0 rows --> Q4{Consecutive sql_query/export_csv failures below 3?}
         Q3 --> Q6[Ask OpenAI API for another tool call]
         Q4 -- yes --> Q5[Raise Agent Loop temperature to 0.3]
         Q5 --> Q6
@@ -290,4 +292,4 @@ flowchart TD
     end
 ```
 
-That closes the zoom: the `User` from the first diagram reaches `Browser`, `Chainlit App`, and `Agent Loop`; those flows move `Query Run` and `Chat Session`; those states operate over `geographies`, `acs_catalog`, and `acs_<table_id>` storage; and when the path breaks, the recovery tree stays bounded to the same named components.
+That closes the zoom: the `User` from the first diagram reaches `Browser`, `Chainlit App`, and `Agent Loop`; those flows move `Query Run` and `Chat Session`; those states operate over `geographies`, `acs_catalog`, and `ACS Table Group` storage; and when the path breaks, the recovery tree stays bounded to the same named components.
