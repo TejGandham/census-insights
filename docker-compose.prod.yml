@@ -26,8 +26,8 @@ services:
           cpus: '2'
 
   data-agent:
-    volumes:
-      - /mnt/census-data/acs:/app/data/raw/acs:ro
+    volumes: !override
+      - /mnt/census-data:/app/data/raw:ro
     ports: !reset
       - "127.0.0.1:8001:8000"
     restart: unless-stopped
