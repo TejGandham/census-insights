@@ -271,9 +271,27 @@ def _search_catalog(query: str) -> str:
         # Sort by table ranking, keep first 5 variables per table, cap at 75 total
         rank = {tid: i for i, tid in enumerate(table_ids)}
         df["_rank"] = df["table_id"].map(rank).fillna(999)
-        df = df.sort_values(["_rank", "variable_id"])
+        
+        # Add label-relevance scoring
+        df["label"] = df["label"].fillna("")
+        
+        def score_label(label_str):
+            # Preprocess: replace !! and : with spaces, lowercase
+            label_text = label_str.replace("!!", " ").replace(":", " ").lower()
+            label_words = label_text.split()
+            # Count term hits in label
+            label_hits = sum(1 for t in terms if t in label_text)
+            # Compute density: hits / word count
+            label_density = label_hits / max(len(label_words), 1)
+            # Score: density weighted 10x + hits weighted 3x
+            return (label_density * 10) + (label_hits * 3)
+        
+        df["_label_score"] = df["label"].apply(score_label)
+        
+        # Sort by table rank (ascending), then label score (descending), then variable_id (ascending)
+        df = df.sort_values(["_rank", "_label_score", "variable_id"], ascending=[True, False, True])
         df = df.groupby("table_id", sort=False).head(5)
-        df = df.drop(columns=["_rank"]).head(75)
+        df = df.drop(columns=["_rank", "_label_score"]).head(75)
 
         return df.to_csv(index=False)
     except Exception as e:
