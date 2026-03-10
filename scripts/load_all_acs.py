@@ -207,10 +207,12 @@ def load_catalog(conn):
         if not any(group.startswith(p) for p in VALID_TABLE_PREFIXES):
             continue
 
-        # Determine estimate vs. margin-of-error
-        # Variable names ending in E (or PE) are estimates,
-        # M (or PM) are margins of error.
-        # endswith("E") covers both *_001E and *_001PE, etc.
+        # Determine estimate vs. margin-of-error.
+        # NOTE: MOE variables (ending in M) are not top-level entries in
+        # variables.json — they appear only in the 'attributes' field of each
+        # estimate (e.g. B01001_001E has attributes "B01001_001EA,B01001_001M,...").
+        # This branch correctly yields 0 matches. If MOE catalog rows are ever
+        # needed, parse the 'attributes' field of estimate variables instead.
         if var_name.endswith("E"):
             is_estimate = True
         elif var_name.endswith("M"):
