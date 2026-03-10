@@ -1,0 +1,38 @@
+services:
+  postgres:
+    ports: !reset []
+    command: >
+      postgres
+        -c shared_buffers=256MB
+        -c effective_cache_size=1GB
+        -c work_mem=32MB
+        -c maintenance_work_mem=128MB
+        -c full_page_writes=off
+        -c random_page_cost=1.1
+        -c wal_level=minimal
+        -c max_wal_senders=0
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '1'
+
+  mindsdb:
+    ports: !reset []
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+
+  data-agent:
+    volumes:
+      - /mnt/census-data/acs:/app/data/raw/acs:ro
+    ports: !reset
+      - "127.0.0.1:8001:8000"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1'
