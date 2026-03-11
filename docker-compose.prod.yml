@@ -30,7 +30,7 @@ services:
   data-agent:
     volumes: !override
       - /mnt/census-data:/app/data/raw:ro
-    ports: !reset
+    ports: !override
       - "127.0.0.1:8001:8000"
     restart: unless-stopped
     deploy:
