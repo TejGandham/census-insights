@@ -38,5 +38,5 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
-          cpus: '8'
+          memory: 2G
+          cpus: '6'
