@@ -34,9 +34,9 @@ services:
       - "8001:8000"
     restart: unless-stopped
     environment:
-      - ETL_WORKERS=1
+      - ETL_WORKERS=6
     deploy:
       resources:
         limits:
-          memory: 1G
-          cpus: '1'
+          memory: 4G
+          cpus: '8'
