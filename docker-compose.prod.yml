@@ -1,6 +1,7 @@
 services:
   postgres:
     ports: !reset []
+    restart: unless-stopped
     command: >
       postgres
         -c shared_buffers=256MB
@@ -19,6 +20,7 @@ services:
 
   mindsdb:
     ports: !reset []
+    restart: unless-stopped
     deploy:
       resources:
         limits:
