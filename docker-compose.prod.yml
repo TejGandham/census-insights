@@ -33,8 +33,10 @@ services:
     ports: !override
       - "8001:8000"
     restart: unless-stopped
+    environment:
+      - ETL_WORKERS=1
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
           cpus: '1'
