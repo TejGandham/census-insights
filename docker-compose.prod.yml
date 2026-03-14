@@ -2,12 +2,15 @@ services:
   postgres:
     ports: !reset []
     restart: unless-stopped
+    volumes: !override
+      - /mnt/census-data/pgdata:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01_schema.sql
     command: >
       postgres
-        -c shared_buffers=256MB
-        -c effective_cache_size=1GB
-        -c work_mem=32MB
-        -c maintenance_work_mem=128MB
+        -c shared_buffers=1GB
+        -c effective_cache_size=3GB
+        -c work_mem=64MB
+        -c maintenance_work_mem=256MB
         -c full_page_writes=on
         -c random_page_cost=1.1
         -c wal_level=minimal
@@ -15,8 +18,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
-          cpus: '1'
+          memory: 4G
+          cpus: '4'
 
   mindsdb:
     ports: !reset []
@@ -38,5 +41,5 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 3G
           cpus: '6'

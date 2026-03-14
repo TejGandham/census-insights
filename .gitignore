@@ -7,3 +7,5 @@ __pycache__/
 
 # Census bulk data (downloaded manually, ~53GB)
 data/raw/
+
+.letta
